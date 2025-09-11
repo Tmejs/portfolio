@@ -1,7 +1,7 @@
 package com.portfolio.demo.repository;
 
 import com.portfolio.demo.entity.Transaction;
-import com.portfolio.demo.entity.TransactionType;
+import com.portfolio.demo.enums.TransactionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -100,4 +100,21 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
      * Check if reference number exists
      */
     boolean existsByReferenceNumber(String referenceNumber);
+    
+    /**
+     * Find transactions by account ID and transaction type
+     */
+    List<Transaction> findByAccountIdAndTransactionTypeOrderByCreatedAtDesc(Long accountId, TransactionType transactionType);
+    
+    /**
+     * Find recent transactions with limit
+     */
+    @Query("SELECT t FROM Transaction t ORDER BY t.createdAt DESC LIMIT :limit")
+    List<Transaction> findRecentTransactions(@Param("limit") int limit);
+    
+    /**
+     * Calculate current balance for an account based on transactions
+     */
+    @Query("SELECT COALESCE(SUM(CASE WHEN t.transactionType = 'DEPOSIT' THEN t.amount ELSE -t.amount END), 0) FROM Transaction t WHERE t.account.id = :accountId")
+    BigDecimal calculateCurrentBalance(@Param("accountId") Long accountId);
 }

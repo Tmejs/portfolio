@@ -1,13 +1,17 @@
-package com.portfolio.demo;
+package com.portfolio.demo.repository;
 
+import org.junit.jupiter.api.Test;
+import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.junit4.SpringRunner;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Base class for repository integration tests with proper session management.
@@ -19,9 +23,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * - Proper session management for integration tests
  * - @DirtiesContext ensures clean application context between test classes
  */
-@SpringBootTest
+@RunWith(SpringRunner.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
-@ActiveProfiles("test")
 @DirtiesContext
 public abstract class AbstractRepositoryIT {
 
@@ -42,5 +46,12 @@ public abstract class AbstractRepositoryIT {
         // Disable Redis and Kafka for integration tests
         registry.add("spring.redis.host", () -> "disabled");
         registry.add("spring.kafka.bootstrap-servers", () -> "disabled");
+    }
+
+    @Test
+    void dbIsConnected() {
+        // Verify that PostgreSQL container is running
+        assertThat(postgresql.isRunning()).isTrue();
+        assertThat(postgresql.getDatabaseName()).isEqualTo("banking_test");
     }
 }

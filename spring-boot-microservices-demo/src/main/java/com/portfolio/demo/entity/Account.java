@@ -1,5 +1,7 @@
 package com.portfolio.demo.entity;
 
+import com.portfolio.demo.enums.AccountStatus;
+import com.portfolio.demo.enums.AccountType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

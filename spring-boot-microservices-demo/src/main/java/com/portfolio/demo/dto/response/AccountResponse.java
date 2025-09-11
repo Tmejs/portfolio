@@ -1,8 +1,9 @@
-package com.portfolio.demo.dto;
+package com.portfolio.demo.dto.response;
 
-import com.portfolio.demo.entity.AccountStatus;
-import com.portfolio.demo.entity.AccountType;
+import com.portfolio.demo.enums.AccountStatus;
+import com.portfolio.demo.enums.AccountType;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
  * Response DTO for account information
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AccountResponse {

@@ -1,13 +1,11 @@
 package com.portfolio.demo.repository;
 
-import com.portfolio.demo.AbstractRepositoryIT;
 import com.portfolio.demo.entity.Account;
-import com.portfolio.demo.entity.AccountStatus;
-import com.portfolio.demo.entity.AccountType;
+import com.portfolio.demo.enums.AccountStatus;
+import com.portfolio.demo.enums.AccountType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -19,7 +17,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration tests for AccountRepository using real PostgreSQL database via Testcontainers
  * Uses improved session management without class-level @Transactional
  */
-@ActiveProfiles("test")
 class AccountRepositoryIT extends AbstractRepositoryIT {
 
     @Autowired

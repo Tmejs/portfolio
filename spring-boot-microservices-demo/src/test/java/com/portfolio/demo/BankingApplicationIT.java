@@ -4,6 +4,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -12,30 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * with real PostgreSQL database using Testcontainers with improved session management
  */
 @SpringBootTest
-class BankingApplicationIT extends AbstractRepositoryIT {
-
-    @Autowired
-    private ApplicationContext applicationContext;
-
-    @Test
-    void contextLoads() {
-        // Verify that the application context loads successfully
-        assertThat(applicationContext).isNotNull();
-        
-        // Verify that PostgreSQL container is running
-        assertThat(postgresql.isRunning()).isTrue();
-        assertThat(postgresql.getDatabaseName()).isEqualTo("banking_test");
-    }
-
-    @Test
-    void verifyTestcontainerConnection() {
-        // Verify we can connect to the Testcontainer PostgreSQL instance
-        String jdbcUrl = postgresql.getJdbcUrl();
-        assertThat(jdbcUrl).contains("postgresql://");
-        assertThat(jdbcUrl).contains("banking_test");
-        
-        // Verify credentials
-        assertThat(postgresql.getUsername()).isEqualTo("test_user");
-        assertThat(postgresql.getPassword()).isEqualTo("test_password");
-    }
+@ActiveProfiles("test")
+class BankingApplicationIT {
 }

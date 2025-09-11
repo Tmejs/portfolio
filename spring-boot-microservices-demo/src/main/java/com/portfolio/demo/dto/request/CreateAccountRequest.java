@@ -1,12 +1,13 @@
-package com.portfolio.demo.dto;
+package com.portfolio.demo.dto.request;
 
-import com.portfolio.demo.entity.AccountType;
+import com.portfolio.demo.enums.AccountType;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -16,6 +17,7 @@ import java.math.BigDecimal;
  * Request DTO for creating a new bank account
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateAccountRequest {
@@ -33,8 +35,10 @@ public class CreateAccountRequest {
     private AccountType accountType;
     
     @PositiveOrZero(message = "Initial balance cannot be negative")
+    @Builder.Default
     private BigDecimal initialBalance = BigDecimal.ZERO;
     
     @Size(min = 3, max = 3, message = "Currency must be 3 characters (ISO code)")
+    @Builder.Default
     private String currency = "USD";
 }
