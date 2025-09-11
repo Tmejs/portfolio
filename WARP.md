@@ -3,7 +3,7 @@
 This file provides guidance to WARP (warp.dev) when working with code in this repository.
 
 Repository overview
-- spring-boot-microservices-demo: Spring Boot 3.3.4 application targeting Java 24 (preview features enabled). Integrates PostgreSQL (JPA/Flyway), Redis, Kafka, Micrometer/Prometheus, OpenAPI, Testcontainers.
+- spring-boot-microservices-demo: Spring Boot 3.3.4 banking application targeting Java 24 (preview features enabled). Integrates PostgreSQL (JPA/Flyway) with banking schema, Redis, Kafka, Micrometer/Prometheus, OpenAPI, Testcontainers.
 - aws-infrastructure-terraform: Terraform IaC to provision AWS networking and compute (VPC, EKS), with local development flow via LocalStack.
 
 Common commands
@@ -85,6 +85,16 @@ Paths and entry points
 - Application entry: spring-boot-microservices-demo/src/main/java/com/portfolio/demo/MicroservicesDemoApplication.java
 - Terraform root: aws-infrastructure-terraform/
 
+Database architecture
+- Uses PostgreSQL with schema-based separation for multi-service architecture
+- Banking service operates in 'banking' schema with tables: accounts, transactions
+- Flyway manages schema migrations with versioned SQL files
+- Future services can use separate schemas (e.g., analytics, audit) with isolated security policies
+- Database connection: jdbc:postgresql://localhost:5432/portfolio_banking
+- Default schema configured in Hibernate and Flyway: banking
+
 Conventions and expectations for agents
 - Prefer project-scoped commands provided above (mvn with -f path and terraform -chdir) to avoid cd state.
 - When working with Java preview features, ensure commands that fork the JVM for tests respect the existing pom configuration (Surefire argLine is already set).
+- When creating new database entities, always specify schema="banking" in @Table annotation.
+- All Flyway migrations should operate within banking schema using SET search_path TO banking.
