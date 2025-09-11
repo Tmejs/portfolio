@@ -1,8 +1,8 @@
 package com.portfolio.demo.repository;
 
 import com.portfolio.demo.entity.Account;
-import com.portfolio.demo.entity.AccountStatus;
-import com.portfolio.demo.entity.AccountType;
+import com.portfolio.demo.enums.AccountStatus;
+import com.portfolio.demo.enums.AccountType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -46,6 +46,13 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
      * Find accounts by status
      */
     List<Account> findByStatus(AccountStatus status);
+    
+    /**
+     * Find all active accounts
+     */
+    default List<Account> findByStatusActive() {
+        return findByStatus(AccountStatus.ACTIVE);
+    }
     
     /**
      * Find active accounts with pageable support

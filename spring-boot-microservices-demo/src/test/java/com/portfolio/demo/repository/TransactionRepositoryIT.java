@@ -1,15 +1,14 @@
 package com.portfolio.demo.repository;
 
-import com.portfolio.demo.AbstractRepositoryIT;
 import com.portfolio.demo.entity.Account;
-import com.portfolio.demo.entity.AccountStatus;
-import com.portfolio.demo.entity.AccountType;
+import com.portfolio.demo.enums.AccountStatus;
 import com.portfolio.demo.entity.Transaction;
-import com.portfolio.demo.entity.TransactionType;
+import com.portfolio.demo.enums.AccountType;
+import com.portfolio.demo.enums.TransactionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -22,7 +21,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration tests for TransactionRepository using real PostgreSQL database via Testcontainers
  * Uses improved session management without class-level @Transactional
  */
-@ActiveProfiles("test")
 class TransactionRepositoryIT extends AbstractRepositoryIT {
 
     @Autowired
@@ -33,6 +31,8 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
 
     private Account testAccount;
     private Transaction testTransaction;
+    private static int accountCounter = 1;
+    private static int transactionCounter = 1;
 
     @BeforeEach
     void setUp() {
@@ -40,9 +40,9 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
         transactionRepository.deleteAll();
         accountRepository.deleteAll();
         
-        // Create test account using Lombok builder
+        // Create test account using Lombok builder with unique account number
         testAccount = Account.builder()
-            .accountNumber("ACC1234567890")
+            .accountNumber("ACC" + String.format("%010d", accountCounter++))
             .customerName("John Doe")
             .customerEmail("john.doe@example.com")
             .accountType(AccountType.CHECKING)
@@ -52,12 +52,13 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
             .build();
         testAccount = accountRepository.save(testAccount);
         
-        // Create test transaction using Lombok builder
+        // Create test transaction using Lombok builder with unique reference number
         testTransaction = Transaction.builder()
-            .referenceNumber("TXN1234567890")
+            .referenceNumber("TXN" + String.format("%010d", transactionCounter++))
             .transactionType(TransactionType.DEPOSIT)
             .amount(new BigDecimal("100.00"))
             .description("Test deposit")
+            .balanceBefore(new BigDecimal("1000.00"))
             .balanceAfter(new BigDecimal("1100.00"))
             .account(testAccount)
             .build();
@@ -70,7 +71,7 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
         
         // Then
         assertThat(savedTransaction.getId()).isNotNull();
-        assertThat(savedTransaction.getReferenceNumber()).isEqualTo("TXN1234567890");
+        assertThat(savedTransaction.getReferenceNumber()).isEqualTo(testTransaction.getReferenceNumber());
         assertThat(savedTransaction.getTransactionType()).isEqualTo(TransactionType.DEPOSIT);
         assertThat(savedTransaction.getAmount()).isEqualByComparingTo("100.00");
         assertThat(savedTransaction.getCreatedAt()).isNotNull();
@@ -78,17 +79,18 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
     }
 
     @Test
+    @Transactional
     void shouldFindTransactionByReferenceNumber() {
         // Given
         transactionRepository.save(testTransaction);
         
         // When
-        Optional<Transaction> found = transactionRepository.findByReferenceNumber("TXN1234567890");
+        Optional<Transaction> found = transactionRepository.findByReferenceNumber(testTransaction.getReferenceNumber());
         
         // Then
         assertThat(found).isPresent();
         assertThat(found.get().getDescription()).isEqualTo("Test deposit");
-        assertThat(found.get().getAccount().getAccountNumber()).isEqualTo("ACC1234567890");
+        assertThat(found.get().getAccount().getAccountNumber()).isEqualTo(testAccount.getAccountNumber());
     }
 
     @Test
@@ -101,6 +103,7 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
             .transactionType(TransactionType.WITHDRAWAL)
             .amount(new BigDecimal("50.00"))
             .description("Test withdrawal")
+            .balanceBefore(new BigDecimal("1100.00"))
             .balanceAfter(new BigDecimal("1050.00"))
             .account(testAccount)
             .build();
@@ -122,11 +125,11 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
         transactionRepository.save(testTransaction);
         
         // When
-        List<Transaction> transactions = transactionRepository.findByAccountNumber("ACC1234567890");
+        List<Transaction> transactions = transactionRepository.findByAccountNumber(testAccount.getAccountNumber());
         
         // Then
         assertThat(transactions).hasSize(1);
-        assertThat(transactions.get(0).getReferenceNumber()).isEqualTo("TXN1234567890");
+        assertThat(transactions.get(0).getReferenceNumber()).isEqualTo(testTransaction.getReferenceNumber());
     }
 
     @Test
@@ -139,6 +142,7 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
             .transactionType(TransactionType.WITHDRAWAL)
             .amount(new BigDecimal("50.00"))
             .description("Test withdrawal")
+            .balanceBefore(new BigDecimal("1000.00"))
             .balanceAfter(new BigDecimal("950.00"))
             .account(testAccount)
             .build();
@@ -165,6 +169,7 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
             .transactionType(TransactionType.DEPOSIT)
             .amount(new BigDecimal("200.00"))
             .description("Another deposit")
+            .balanceBefore(new BigDecimal("1100.00"))
             .balanceAfter(new BigDecimal("1300.00"))
             .account(testAccount)
             .build();
@@ -188,6 +193,7 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
             .transactionType(TransactionType.WITHDRAWAL)
             .amount(new BigDecimal("50.00"))
             .description("Test withdrawal")
+            .balanceBefore(new BigDecimal("1100.00"))
             .balanceAfter(new BigDecimal("1050.00"))
             .account(testAccount)
             .build();
@@ -208,7 +214,7 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
         transactionRepository.save(testTransaction);
         
         // When & Then
-        assertThat(transactionRepository.existsByReferenceNumber("TXN1234567890")).isTrue();
+        assertThat(transactionRepository.existsByReferenceNumber(testTransaction.getReferenceNumber())).isTrue();
         assertThat(transactionRepository.existsByReferenceNumber("NONEXISTENT")).isFalse();
     }
 
@@ -223,6 +229,6 @@ class TransactionRepositoryIT extends AbstractRepositoryIT {
         
         // Then
         assertThat(recentTransactions).hasSize(1);
-        assertThat(recentTransactions.get(0).getReferenceNumber()).isEqualTo("TXN1234567890");
+        assertThat(recentTransactions.get(0).getReferenceNumber()).isEqualTo(testTransaction.getReferenceNumber());
     }
 }

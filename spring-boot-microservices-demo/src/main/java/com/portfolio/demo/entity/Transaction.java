@@ -1,5 +1,6 @@
 package com.portfolio.demo.entity;
 
+import com.portfolio.demo.enums.TransactionType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -57,6 +58,10 @@ public class Transaction {
     @Column(name = "description", length = 500)
     @Size(max = 500, message = "Description cannot exceed 500 characters")
     private String description;
+    
+    @Column(name = "balance_before", precision = 19, scale = 2, nullable = false)
+    @NotNull(message = "Balance before transaction is required")
+    private BigDecimal balanceBefore;
     
     @Column(name = "balance_after", precision = 19, scale = 2, nullable = false)
     @NotNull(message = "Balance after transaction is required")

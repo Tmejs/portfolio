@@ -1,7 +1,8 @@
-package com.portfolio.demo.dto;
+package com.portfolio.demo.dto.response;
 
-import com.portfolio.demo.entity.TransactionType;
+import com.portfolio.demo.enums.TransactionType;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -12,16 +13,18 @@ import java.time.LocalDateTime;
  * Response DTO for transaction information
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class TransactionResponse {
     
     private Long id;
-    private String referenceNumber;
+    private Long accountId;
+    private String accountNumber;
     private TransactionType transactionType;
     private BigDecimal amount;
-    private String description;
+    private BigDecimal balanceBefore;
     private BigDecimal balanceAfter;
+    private String description;
     private LocalDateTime createdAt;
-    private String accountNumber;
 }

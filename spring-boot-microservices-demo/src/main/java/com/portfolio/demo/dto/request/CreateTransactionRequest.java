@@ -1,11 +1,12 @@
-package com.portfolio.demo.dto;
+package com.portfolio.demo.dto.request;
 
-import com.portfolio.demo.entity.TransactionType;
+import com.portfolio.demo.enums.TransactionType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -15,13 +16,13 @@ import java.math.BigDecimal;
  * Request DTO for creating a new transaction
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateTransactionRequest {
     
-    @NotBlank(message = "Account number is required")
-    @Size(min = 10, max = 20, message = "Account number must be between 10 and 20 characters")
-    private String accountNumber;
+    @NotNull(message = "Account ID is required")
+    private Long accountId;
     
     @NotNull(message = "Transaction type is required")
     private TransactionType transactionType;
