@@ -1,6 +1,6 @@
 package com.portfolio.demo.repository;
 
-import com.portfolio.demo.AbstractRepositoryTest;
+import com.portfolio.demo.AbstractRepositoryIT;
 import com.portfolio.demo.entity.Account;
 import com.portfolio.demo.entity.AccountStatus;
 import com.portfolio.demo.entity.AccountType;
@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Uses improved session management without class-level @Transactional
  */
 @ActiveProfiles("test")
-class TransactionRepositoryIT extends AbstractRepositoryTest {
+class TransactionRepositoryIT extends AbstractRepositoryIT {
 
     @Autowired
     private TransactionRepository transactionRepository;

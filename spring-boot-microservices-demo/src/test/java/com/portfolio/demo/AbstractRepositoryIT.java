@@ -23,7 +23,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 @ActiveProfiles("test")
 @DirtiesContext
-public abstract class AbstractRepositoryTest {
+public abstract class AbstractRepositoryIT {
 
     @Container
     protected static final PostgreSQLContainer<?> postgresql = 
