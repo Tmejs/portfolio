@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  localstack:
+    image: localstack/localstack:3.2.0
+    container_name: localstack-portfolio
+    ports:
+      - "4566:4566"            # LocalStack Gateway
+      - "4510-4559:4510-4559"  # External services port range
+    environment:
+      # LocalStack configuration
+      - SERVICES=ec2,ecs,eks,iam,rds,elasticache,vpc,logs,events,lambda,s3,secretsmanager
+      - DEBUG=1
+      - PERSISTENCE=1
+      - LAMBDA_EXECUTOR=local
+      - LOCALSTACK_API_KEY=${LOCALSTACK_API_KEY-}  # Optional: for LocalStack Pro features
+      
+      # AWS configuration
+      - AWS_DEFAULT_REGION=us-west-2
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_SESSION_TOKEN=test
+      
+      # EKS configuration (requires LocalStack Pro for full EKS support)
+      - EKS_PROVIDER=local
+      
+      # Disable SSL verification for local development
+      - SKIP_SSL_CERT_DOWNLOAD=1
+      
+    volumes:
+      - "${LOCALSTACK_VOLUME_DIR:-./localstack-data}:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - localstack-network
+
+  # Optional: LocalStack Web UI (requires LocalStack Pro)
+  localstack-ui:
+    image: localstack/localstack-web-ui:latest
+    container_name: localstack-ui
+    ports:
+      - "8080:8080"
+    environment:
+      - LOCALSTACK_WEB_UI_API_KEY=${LOCALSTACK_API_KEY-}
+    depends_on:
+      - localstack
+    networks:
+      - localstack-network
+    profiles:
+      - ui
+
+networks:
+  localstack-network:
+    driver: bridge
+
+volumes:
+  localstack-data:

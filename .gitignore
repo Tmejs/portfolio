@@ -1,0 +1,30 @@
+# IDE files
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Java/Maven
+target/
+*.jar
+*.war
+*.ear
+*.class
+*.log
+
+# Spring Boot
+/spring-boot-microservices-demo/target/
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+!terraform.tfvars.example
+
+# LocalStack specific
+/aws-infrastructure-terraform/.terraform/
+
+# OS generated files
+Thumbs.db
