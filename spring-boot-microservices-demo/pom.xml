@@ -19,9 +19,9 @@
     <description>A comprehensive Spring Boot application demonstrating modern Java 24 features, CRUD operations, async processing, PostgreSQL, Redis, and Kafka integration</description>
 
     <properties>
-        <java.version>24</java.version>
-        <maven.compiler.source>24</maven.compiler.source>
-        <maven.compiler.target>24</maven.compiler.target>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <spring-cloud.version>2023.0.3</spring-cloud.version>
         <testcontainers.version>1.20.2</testcontainers.version>
     </properties>
@@ -76,6 +76,13 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Observability -->
         <dependency>
             <groupId>io.micrometer</groupId>
@@ -115,6 +122,11 @@
             <artifactId>kafka</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>
@@ -147,19 +159,37 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-                    <source>24</source>
-                    <target>24</target>
-                    <compilerArgs>
-                        <arg>--enable-preview</arg>
-                    </compilerArgs>
+                    <source>21</source>
+                    <target>21</target>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>--enable-preview</argLine>
+                    <!-- Exclude integration tests from unit test phase -->
+                    <excludes>
+                        <exclude>**/*IT.java</exclude>
+                    </excludes>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <!-- Include integration tests -->
+                    <includes>
+                        <include>**/*IT.java</include>
+                    </includes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
