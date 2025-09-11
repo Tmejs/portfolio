@@ -1,6 +1,6 @@
 package com.portfolio.demo.repository;
 
-import com.portfolio.demo.AbstractIntegrationTest;
+import com.portfolio.demo.AbstractRepositoryTest;
 import com.portfolio.demo.entity.Account;
 import com.portfolio.demo.entity.AccountStatus;
 import com.portfolio.demo.entity.AccountType;
@@ -17,10 +17,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration tests for AccountRepository using real PostgreSQL database via Testcontainers
- * Designed for Java 24 banking microservices
+ * Uses improved session management without class-level @Transactional
  */
 @ActiveProfiles("test")
-class AccountRepositoryTest extends AbstractIntegrationTest {
+class AccountRepositoryTest extends AbstractRepositoryTest {
 
     @Autowired
     private AccountRepository accountRepository;
@@ -32,15 +32,16 @@ class AccountRepositoryTest extends AbstractIntegrationTest {
         // Clean up any existing data
         accountRepository.deleteAll();
         
-        // Create test account
-        testAccount = new Account();
-        testAccount.setAccountNumber("ACC1234567890");
-        testAccount.setCustomerName("John Doe");
-        testAccount.setCustomerEmail("john.doe@example.com");
-        testAccount.setAccountType(AccountType.CHECKING);
-        testAccount.setBalance(new BigDecimal("1000.00"));
-        testAccount.setCurrency("USD");
-        testAccount.setStatus(AccountStatus.ACTIVE);
+        // Create test account using Lombok builder
+        testAccount = Account.builder()
+            .accountNumber("ACC1234567890")
+            .customerName("John Doe")
+            .customerEmail("john.doe@example.com")
+            .accountType(AccountType.CHECKING)
+            .balance(new BigDecimal("1000.00"))
+            .currency("USD")
+            .status(AccountStatus.ACTIVE)
+            .build();
     }
 
     @Test
@@ -76,14 +77,15 @@ class AccountRepositoryTest extends AbstractIntegrationTest {
         // Given
         accountRepository.save(testAccount);
         
-        Account secondAccount = new Account();
-        secondAccount.setAccountNumber("ACC0987654321");
-        secondAccount.setCustomerName("John Doe");
-        secondAccount.setCustomerEmail("john.doe@example.com");
-        secondAccount.setAccountType(AccountType.SAVINGS);
-        secondAccount.setBalance(new BigDecimal("500.00"));
-        secondAccount.setCurrency("USD");
-        secondAccount.setStatus(AccountStatus.ACTIVE);
+        Account secondAccount = Account.builder()
+            .accountNumber("ACC0987654321")
+            .customerName("John Doe")
+            .customerEmail("john.doe@example.com")
+            .accountType(AccountType.SAVINGS)
+            .balance(new BigDecimal("500.00"))
+            .currency("USD")
+            .status(AccountStatus.ACTIVE)
+            .build();
         accountRepository.save(secondAccount);
         
         // When
@@ -101,14 +103,15 @@ class AccountRepositoryTest extends AbstractIntegrationTest {
         // Given
         accountRepository.save(testAccount);
         
-        Account savingsAccount = new Account();
-        savingsAccount.setAccountNumber("SAV1234567890");
-        savingsAccount.setCustomerName("Jane Smith");
-        savingsAccount.setCustomerEmail("jane.smith@example.com");
-        savingsAccount.setAccountType(AccountType.SAVINGS);
-        savingsAccount.setBalance(new BigDecimal("2000.00"));
-        savingsAccount.setCurrency("USD");
-        savingsAccount.setStatus(AccountStatus.ACTIVE);
+        Account savingsAccount = Account.builder()
+            .accountNumber("SAV1234567890")
+            .customerName("Jane Smith")
+            .customerEmail("jane.smith@example.com")
+            .accountType(AccountType.SAVINGS)
+            .balance(new BigDecimal("2000.00"))
+            .currency("USD")
+            .status(AccountStatus.ACTIVE)
+            .build();
         accountRepository.save(savingsAccount);
         
         // When
@@ -127,14 +130,15 @@ class AccountRepositoryTest extends AbstractIntegrationTest {
         // Given
         accountRepository.save(testAccount);
         
-        Account inactiveAccount = new Account();
-        inactiveAccount.setAccountNumber("INA1234567890");
-        inactiveAccount.setCustomerName("Inactive User");
-        inactiveAccount.setCustomerEmail("inactive@example.com");
-        inactiveAccount.setAccountType(AccountType.SAVINGS);
-        inactiveAccount.setBalance(new BigDecimal("100.00"));
-        inactiveAccount.setCurrency("USD");
-        inactiveAccount.setStatus(AccountStatus.INACTIVE);
+        Account inactiveAccount = Account.builder()
+            .accountNumber("INA1234567890")
+            .customerName("Inactive User")
+            .customerEmail("inactive@example.com")
+            .accountType(AccountType.SAVINGS)
+            .balance(new BigDecimal("100.00"))
+            .currency("USD")
+            .status(AccountStatus.INACTIVE)
+            .build();
         accountRepository.save(inactiveAccount);
         
         // When

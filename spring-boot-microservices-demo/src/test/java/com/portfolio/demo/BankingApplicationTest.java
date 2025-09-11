@@ -9,10 +9,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration test to verify Spring Boot application context loads
- * with real PostgreSQL database using Testcontainers and Java 24
+ * with real PostgreSQL database using Testcontainers with improved session management
  */
 @SpringBootTest
-class BankingApplicationTest extends AbstractIntegrationTest {
+class BankingApplicationTest extends AbstractRepositoryTest {
 
     @Autowired
     private ApplicationContext applicationContext;
