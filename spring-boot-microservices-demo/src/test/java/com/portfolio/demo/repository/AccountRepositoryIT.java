@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Uses improved session management without class-level @Transactional
  */
 @ActiveProfiles("test")
-class AccountRepositoryTest extends AbstractRepositoryTest {
+class AccountRepositoryIT extends AbstractRepositoryTest {
 
     @Autowired
     private AccountRepository accountRepository;

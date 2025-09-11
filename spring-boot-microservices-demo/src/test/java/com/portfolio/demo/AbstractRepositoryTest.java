@@ -1,10 +1,10 @@
 package com.portfolio.demo;
 
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -17,10 +17,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * - Uses method-level @Transactional for tests that need it
  * - Enables lazy loading for test scenarios
  * - Proper session management for integration tests
+ * - @DirtiesContext ensures clean application context between test classes
  */
 @SpringBootTest
 @Testcontainers
 @ActiveProfiles("test")
+@DirtiesContext
 public abstract class AbstractRepositoryTest {
 
     @Container

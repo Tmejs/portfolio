@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * with real PostgreSQL database using Testcontainers with improved session management
  */
 @SpringBootTest
-class BankingApplicationTest extends AbstractRepositoryTest {
+class BankingApplicationIT extends AbstractRepositoryTest {
 
     @Autowired
     private ApplicationContext applicationContext;
