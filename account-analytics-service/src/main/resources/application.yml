@@ -39,6 +39,13 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
+# Kafka Topics Configuration
+kafka:
+  topics:
+    transaction-events: ${KAFKA_TOPIC_TRANSACTION_EVENTS:transaction-events}
+    account-events: ${KAFKA_TOPIC_ACCOUNT_EVENTS:account-events}
+    analytics-notifications: ${KAFKA_TOPIC_ANALYTICS_NOTIFICATIONS:analytics-notifications}
+
 # Actuator Configuration
 management:
   endpoints:

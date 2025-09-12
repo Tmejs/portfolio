@@ -1,0 +1,29 @@
+# Test configuration for account-analytics-service
+
+spring:
+  kafka:
+    bootstrap-servers: localhost:9097
+    consumer:
+      group-id: account-analytics-service-test
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.portfolio.*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# Kafka Topics Configuration for Testing
+kafka:
+  topics:
+    transaction-events: transaction-events
+    account-events: account-events
+    analytics-notifications: analytics-notifications
+
+# Logging Configuration for Testing
+logging:
+  level:
+    com.portfolio.analytics: DEBUG
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
