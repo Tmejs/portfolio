@@ -26,5 +26,6 @@ public class TransactionResponse {
     private BigDecimal balanceBefore;
     private BigDecimal balanceAfter;
     private String description;
+    private String referenceNumber;
     private LocalDateTime createdAt;
 }

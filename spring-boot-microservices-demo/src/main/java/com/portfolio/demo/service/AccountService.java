@@ -1,5 +1,6 @@
 package com.portfolio.demo.service;
 
+import com.portfolio.demo.dto.message.AccountCreatedMessage;
 import com.portfolio.demo.dto.request.CreateAccountRequest;
 import com.portfolio.demo.dto.response.AccountResponse;
 import com.portfolio.demo.entity.Account;
@@ -7,6 +8,7 @@ import com.portfolio.demo.enums.AccountStatus;
 import com.portfolio.demo.exception.AccountNotFoundException;
 import com.portfolio.demo.exception.InvalidAccountOperationException;
 import com.portfolio.demo.repository.AccountRepository;
+import com.portfolio.demo.service.messaging.MessageProducerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 public class AccountService {
 
     private final AccountRepository accountRepository;
+    private final MessageProducerService messageProducerService;
 
     @Transactional
     public AccountResponse createAccount(CreateAccountRequest request) {
@@ -46,6 +49,9 @@ public class AccountService {
 
         Account savedAccount = accountRepository.save(account);
         log.info("Created account with ID: {} for customer: {}", savedAccount.getId(), request.getCustomerName());
+        
+        // Publish account created event
+        publishAccountCreatedEvent(savedAccount);
         
         return mapToAccountResponse(savedAccount);
     }
@@ -190,6 +196,31 @@ public class AccountService {
                 .createdAt(account.getCreatedAt())
                 .updatedAt(account.getUpdatedAt())
                 .build();
+    }
+
+    private void publishAccountCreatedEvent(Account account) {
+        try {
+            AccountCreatedMessage message = AccountCreatedMessage.builder()
+                    .accountId(account.getId())
+                    .accountNumber(account.getAccountNumber())
+                    .customerName(account.getCustomerName())
+                    .customerEmail(account.getCustomerEmail())
+                    .accountType(account.getAccountType())
+                    .balance(account.getBalance())
+                    .currency(account.getCurrency())
+                    .status(account.getStatus())
+                    .createdAt(account.getCreatedAt())
+                    .eventTimestamp(LocalDateTime.now())
+                    .build();
+            
+            messageProducerService.publishAccountCreated(message);
+            log.debug("Successfully published account created event for account: {}", account.getAccountNumber());
+            
+        } catch (Exception e) {
+            // Log error but don't fail the transaction - messaging is async
+            log.error("Failed to publish account created event for account {}: {}", 
+                     account.getAccountNumber(), e.getMessage(), e);
+        }
     }
 
     private String generateAccountNumber() {

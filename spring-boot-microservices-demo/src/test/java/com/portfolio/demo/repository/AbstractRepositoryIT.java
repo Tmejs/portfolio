@@ -1,8 +1,12 @@
 package com.portfolio.demo.repository;
 
+import com.portfolio.demo.service.messaging.MessageConsumerService;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -29,6 +33,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DirtiesContext
 public abstract class AbstractRepositoryIT {
 
+    // Mock Kafka components to avoid startup issues in repository tests
+    @MockBean
+    private MessageConsumerService messageConsumerService;
+    
+    @MockBean
+    private KafkaTemplate<String, Object> kafkaTemplate;
+    
+    @MockBean
+    private KafkaListenerEndpointRegistry kafkaListenerEndpointRegistry;
+
     @Container
     protected static final PostgreSQLContainer<?> postgresql = 
         new PostgreSQLContainer<>("postgres:15-alpine")
@@ -43,8 +57,17 @@ public abstract class AbstractRepositoryIT {
         registry.add("spring.datasource.username", postgresql::getUsername);
         registry.add("spring.datasource.password", postgresql::getPassword);
         
-        // Disable Redis and Kafka for integration tests
+        // Configure for repository tests
+        configureAdditionalProperties(registry);
+    }
+    
+    /**
+     * Override this method in subclasses to configure additional properties.
+     * Default implementation disables Redis and Kafka for pure repository tests.
+     */
+    protected static void configureAdditionalProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.redis.host", () -> "disabled");
+        // Disable Kafka completely for repository/controller tests
         registry.add("spring.kafka.bootstrap-servers", () -> "disabled");
     }
 

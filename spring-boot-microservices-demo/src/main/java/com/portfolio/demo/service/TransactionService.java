@@ -1,5 +1,6 @@
 package com.portfolio.demo.service;
 
+import com.portfolio.demo.dto.message.TransactionCreatedMessage;
 import com.portfolio.demo.dto.request.CreateTransactionRequest;
 import com.portfolio.demo.dto.response.TransactionResponse;
 import com.portfolio.demo.entity.Account;
@@ -11,6 +12,7 @@ import com.portfolio.demo.exception.InsufficientFundsException;
 import com.portfolio.demo.exception.InvalidTransactionException;
 import com.portfolio.demo.exception.TransactionNotFoundException;
 import com.portfolio.demo.repository.TransactionRepository;
+import com.portfolio.demo.service.messaging.MessageProducerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,6 +33,7 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final AccountService accountService;
+    private final MessageProducerService messageProducerService;
 
     @Transactional
     public TransactionResponse createTransaction(CreateTransactionRequest request) {
@@ -81,6 +84,9 @@ public class TransactionService {
         log.info("Created {} transaction ID: {} for account ID: {}. Balance changed from {} to {}", 
                 request.getTransactionType(), savedTransaction.getId(), account.getId(), 
                 transaction.getBalanceBefore(), transaction.getBalanceAfter());
+
+        // Publish transaction created event
+        publishTransactionCreatedEvent(savedTransaction);
 
         return mapToTransactionResponse(savedTransaction);
     }
@@ -231,8 +237,36 @@ public class TransactionService {
                 .balanceBefore(transaction.getBalanceBefore())
                 .balanceAfter(transaction.getBalanceAfter())
                 .description(transaction.getDescription())
+                .referenceNumber(transaction.getReferenceNumber())
                 .createdAt(transaction.getCreatedAt())
                 .build();
+    }
+
+    private void publishTransactionCreatedEvent(Transaction transaction) {
+        try {
+            TransactionCreatedMessage message = TransactionCreatedMessage.builder()
+                    .transactionId(transaction.getId())
+                    .referenceNumber(transaction.getReferenceNumber())
+                    .transactionType(transaction.getTransactionType())
+                    .amount(transaction.getAmount())
+                    .description(transaction.getDescription())
+                    .balanceBefore(transaction.getBalanceBefore())
+                    .balanceAfter(transaction.getBalanceAfter())
+                    .createdAt(transaction.getCreatedAt())
+                    .accountId(transaction.getAccount().getId())
+                    .accountNumber(transaction.getAccount().getAccountNumber())
+                    .customerName(transaction.getAccount().getCustomerName())
+                    .eventTimestamp(LocalDateTime.now())
+                    .build();
+            
+            messageProducerService.publishTransactionCreated(message);
+            log.debug("Successfully published transaction created event for reference: {}", transaction.getReferenceNumber());
+            
+        } catch (Exception e) {
+            // Log error but don't fail the transaction - messaging is async
+            log.error("Failed to publish transaction created event for reference {}: {}", 
+                     transaction.getReferenceNumber(), e.getMessage(), e);
+        }
     }
 
     private String generateTransactionReferenceNumber() {
