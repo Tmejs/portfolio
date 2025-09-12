@@ -36,6 +36,46 @@ provider "aws" {
   }
 }
 
+# Helm provider configuration
+provider "helm" {
+  kubernetes {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+    
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args = [
+        "eks",
+        "get-token",
+        "--cluster-name",
+        module.eks.cluster_id,
+        "--region",
+        var.aws_region
+      ]
+    }
+  }
+}
+
+# Kubernetes provider configuration
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+  
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args = [
+      "eks",
+      "get-token",
+      "--cluster-name",
+      module.eks.cluster_id,
+      "--region",
+      var.aws_region
+    ]
+  }
+}
+
 # Data sources
 data "aws_availability_zones" "available" {
   state = "available"
@@ -91,6 +131,175 @@ module "eks" {
   tags = local.common_tags
 
   depends_on = [module.vpc]
+}
+
+# External Secrets Operator
+resource "helm_release" "external_secrets" {
+  name       = "external-secrets"
+  repository = "https://charts.external-secrets.io"
+  chart      = "external-secrets"
+  version    = "0.9.11"
+  namespace  = "external-secrets"
+
+  create_namespace = true
+
+  set {
+    name  = "installCRDs"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.annotations.eks\.amazonaws\.com/role-arn"
+    value = module.eks.external_secrets_service_account_role_arn
+  }
+
+  depends_on = [module.eks]
+}
+
+# AWS Secrets Manager SecretStore
+resource "kubernetes_manifest" "secret_store" {
+  manifest = {
+    apiVersion = "external-secrets.io/v1beta1"
+    kind       = "SecretStore"
+    metadata = {
+      name      = "aws-secrets-manager"
+      namespace = "default"
+    }
+    spec = {
+      provider = {
+        aws = {
+          service = "SecretsManager"
+          region  = var.aws_region
+          auth = {
+            serviceAccount = {
+              name = "external-secrets"
+            }
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [helm_release.external_secrets]
+}
+
+# Prometheus Stack (kube-prometheus-stack)
+resource "helm_release" "prometheus_stack" {
+  count = var.enable_monitoring ? 1 : 0
+
+  name       = "prometheus"
+  repository = "https://prometheus-community.github.io/helm-charts"
+  chart      = "kube-prometheus-stack"
+  version    = "55.5.0"
+  namespace  = "monitoring"
+
+  create_namespace = true
+  timeout          = 600
+
+  values = [
+    yamlencode({
+      prometheus = {
+        prometheusSpec = {
+          serviceMonitorSelectorNilUsesHelmValues = false
+          podMonitorSelectorNilUsesHelmValues    = false
+          retention                               = "15d"
+          storageSpec = {
+            volumeClaimTemplate = {
+              spec = {
+                storageClassName = "gp2"
+                accessModes      = ["ReadWriteOnce"]
+                resources = {
+                  requests = {
+                    storage = "20Gi"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      grafana = {
+        adminPassword = "admin123"  # Change this in production!
+        persistence = {
+          enabled          = true
+          storageClassName = "gp2"
+          size             = "10Gi"
+        }
+        dashboardProviders = {
+          "dashboardproviders.yaml" = {
+            apiVersion = 1
+            providers = [
+              {
+                name            = "default"
+                orgId           = 1
+                folder          = ""
+                type            = "file"
+                disableDeletion = false
+                editable        = true
+                options = {
+                  path = "/var/lib/grafana/dashboards/default"
+                }
+              }
+            ]
+          }
+        }
+      }
+      alertmanager = {
+        alertmanagerSpec = {
+          storage = {
+            volumeClaimTemplate = {
+              spec = {
+                storageClassName = "gp2"
+                accessModes      = ["ReadWriteOnce"]
+                resources = {
+                  requests = {
+                    storage = "5Gi"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+  ]
+
+  depends_on = [module.eks]
+}
+
+# Banking Microservice Application Deployment
+resource "helm_release" "banking_microservice" {
+  count = var.deploy_application ? 1 : 0
+
+  name      = "banking-microservice"
+  chart     = "../helm-charts/banking-microservice"
+  namespace = "default"
+
+  values = [
+    file("../helm-charts/banking-microservice/values-${var.environment}.yaml")
+  ]
+
+  set_string {
+    name  = "database.host"
+    value = module.rds.db_instance_address
+  }
+
+  set_string {
+    name  = "redis.host"
+    value = module.redis.redis_primary_endpoint_address
+  }
+
+  set_string {
+    name  = "serviceAccount.annotations.eks\.amazonaws\.com/role-arn"
+    value = module.eks.external_secrets_service_account_role_arn
+  }
+
+  depends_on = [
+    module.rds,
+    module.redis,
+    helm_release.external_secrets,
+    kubernetes_manifest.secret_store
+  ]
 }
 
 # RDS Module

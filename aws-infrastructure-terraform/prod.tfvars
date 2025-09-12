@@ -42,3 +42,7 @@ redis_transit_encryption_enabled = true
 redis_automatic_failover_enabled = true
 redis_multi_az_enabled = true
 redis_snapshot_retention_limit = 14
+
+# Application deployment
+enable_monitoring = true
+deploy_application = true

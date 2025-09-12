@@ -200,3 +200,16 @@ variable "redis_snapshot_retention_limit" {
   type        = number
   default     = 7
 }
+
+# Helm and application deployment variables
+variable "enable_monitoring" {
+  description = "Enable Prometheus/Grafana monitoring stack"
+  type        = bool
+  default     = false
+}
+
+variable "deploy_application" {
+  description = "Deploy the banking microservice application"
+  type        = bool
+  default     = false
+}
