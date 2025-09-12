@@ -1,4 +1,4 @@
-name: PR Validation
+name: PR Validation - All Services
 
 on:
   pull_request:
@@ -9,7 +9,35 @@ env:
   MAVEN_OPTS: '-Xmx1024m'
 
 jobs:
-  validate:
+  changes:
+    name: Detect Service Changes
+    runs-on: ubuntu-latest
+    outputs:
+      banking-service: ${{ steps.changes.outputs.banking-service }}
+      analytics-service: ${{ steps.changes.outputs.analytics-service }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Check for changes
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            banking-service:
+              - 'spring-boot-microservices-demo/**'
+              - '.github/workflows/ci-cd.yml'
+            analytics-service:
+              - 'account-analytics-service/**'
+              - '.github/workflows/account-analytics-service.yml'
+
+  validate-banking:
+    name: Validate Banking Service
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.banking-service == 'true'
     name: Quick Validation
     runs-on: ubuntu-latest
     
@@ -54,15 +82,88 @@ jobs:
       run: |
         timeout 300 mvn test -Dtest='**/AccountRepositoryIT' || echo "Quick integration test completed"
       continue-on-error: true
+
+  validate-analytics:
+    name: Validate Analytics Service
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.analytics-service == 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
       
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('account-analytics-service/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2-analytics-
+          ${{ runner.os }}-m2-
+        
+    - name: Validate Maven setup
+      working-directory: ./account-analytics-service
+      run: mvn validate
+      
+    - name: Compile and run quick tests
+      working-directory: ./account-analytics-service
+      run: |
+        mvn clean compile test-compile
+        mvn test -Dtest='!**/*IT' -DfailIfNoTests=false
+        
+    - name: Run quick Redis integration test
+      working-directory: ./account-analytics-service
+      run: |
+        timeout 300 mvn test -Dtest='**/RedisIT#shouldSaveAndRetrieveUserPreferences' || echo "Quick Redis test completed"
+      continue-on-error: true
+      
+  comment-pr:
+    name: Comment PR Results
+    runs-on: ubuntu-latest
+    needs: [changes, validate-banking, validate-analytics]
+    if: always() && github.event_name == 'pull_request'
+    
+    steps:
     - name: Comment PR
-      if: github.event_name == 'pull_request'
       uses: actions/github-script@v7
       with:
         script: |
+          const bankingChanged = '${{ needs.changes.outputs.banking-service }}' === 'true';
+          const analyticsChanged = '${{ needs.changes.outputs.analytics-service }}' === 'true';
+          const bankingResult = '${{ needs.validate-banking.result }}';
+          const analyticsResult = '${{ needs.validate-analytics.result }}';
+          
+          let message = '## 📝 PR Validation Results\n\n';
+          
+          if (bankingChanged) {
+            const bankingIcon = bankingResult === 'success' ? '✅' : '❌';
+            message += `${bankingIcon} **Banking Service**: ${bankingResult}\n`;
+          }
+          
+          if (analyticsChanged) {
+            const analyticsIcon = analyticsResult === 'success' ? '✅' : '❌';
+            message += `${analyticsIcon} **Analytics Service**: ${analyticsResult}\n`;
+          }
+          
+          if (!bankingChanged && !analyticsChanged) {
+            message += '🔍 No service changes detected in this PR.\n';
+          }
+          
+          message += '\n🚀 The full CI/CD pipeline will run once this PR is merged.';
+          
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: '✅ PR validation completed! The full CI/CD pipeline will run once this PR is merged.'
+            body: message
           });

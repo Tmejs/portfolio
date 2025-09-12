@@ -1,0 +1,93 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: account-analytics-service
+  
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+    
+    # MongoDB Configuration
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/analytics}
+      auto-index-creation: true
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: account-analytics-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.portfolio.*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# Kafka Topics Configuration
+kafka:
+  topics:
+    transaction-events: ${KAFKA_TOPIC_TRANSACTION_EVENTS:transaction-events}
+    account-events: ${KAFKA_TOPIC_ACCOUNT_EVENTS:account-events}
+    analytics-notifications: ${KAFKA_TOPIC_ANALYTICS_NOTIFICATIONS:analytics-notifications}
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      banking-service:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+
+# Banking Service Client Configuration
+banking-service:
+  base-url: ${BANKING_SERVICE_URL:http://localhost:8080}
+  timeout: 5s
+
+# OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# Logging Configuration
+logging:
+  level:
+    com.portfolio.analytics: INFO
+    org.springframework.kafka: INFO
+    org.springframework.data.redis: INFO
+    org.springframework.data.mongodb: INFO

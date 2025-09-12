@@ -1,0 +1,405 @@
+name: Account Analytics Service CI/CD
+
+on:
+  push:
+    branches: [ main, develop, caching-service ]
+    paths:
+      - 'account-analytics-service/**'
+      - '.github/workflows/account-analytics-service.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'account-analytics-service/**'
+      - '.github/workflows/account-analytics-service.yml'
+
+env:
+  JAVA_VERSION: '21'
+  MAVEN_OPTS: '-Xmx1024m'
+  SPRING_PROFILES_ACTIVE: test
+  SERVICE_NAME: account-analytics-service
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      analytics-service: ${{ steps.changes.outputs.analytics-service }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Check for changes
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            analytics-service:
+              - 'account-analytics-service/**'
+              - '.github/workflows/account-analytics-service.yml'
+
+  build:
+    name: Build Analytics Service
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.analytics-service == 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('account-analytics-service/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2-analytics-
+          ${{ runner.os }}-m2-
+        
+    - name: Validate Maven setup
+      working-directory: ./account-analytics-service
+      run: mvn validate -B --no-transfer-progress
+        
+    - name: Compile application
+      working-directory: ./account-analytics-service
+      run: mvn clean compile -B --no-transfer-progress
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: analytics-build-artifacts
+        path: account-analytics-service/target/classes/
+        retention-days: 1
+
+  test:
+    name: Test Analytics Service
+    runs-on: ubuntu-latest
+    needs: [changes, build]
+    if: needs.changes.outputs.analytics-service == 'true'
+    
+    strategy:
+      matrix:
+        test-type: [unit, integration]
+        fail-fast: false
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('account-analytics-service/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2-analytics-
+          ${{ runner.os }}-m2-
+        
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: analytics-build-artifacts
+        path: account-analytics-service/target/classes/
+        
+    - name: Set up Docker (for Testcontainers)
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Start Docker service
+      run: |
+        sudo systemctl start docker
+        docker --version
+        
+    - name: Run Unit Tests
+      if: matrix.test-type == 'unit'
+      working-directory: ./account-analytics-service
+      run: |
+        mvn test -B --no-transfer-progress \
+          -Dtest='!**/*IT' \
+          -DfailIfNoTests=false \
+          -Dspring.profiles.active=test
+          
+    - name: Run Integration Tests with Testcontainers
+      if: matrix.test-type == 'integration'
+      working-directory: ./account-analytics-service
+      run: |
+        mvn verify -B --no-transfer-progress \
+          -DskipUnitTests=true \
+          -Dspring.profiles.active=test \
+          -Dtestcontainers.reuse.enable=false
+      env:
+        TESTCONTAINERS_RYUK_DISABLED: false
+        
+    - name: Upload Test Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: analytics-test-reports-${{ matrix.test-type }}
+        path: |
+          account-analytics-service/target/surefire-reports/
+          account-analytics-service/target/failsafe-reports/
+        retention-days: 7
+        
+    - name: Generate Test Summary
+      if: always()
+      working-directory: ./account-analytics-service
+      run: |
+        echo "## 🧪 Analytics Service Test Results (${{ matrix.test-type }})" >> $GITHUB_STEP_SUMMARY
+        if [ -d "target/surefire-reports" ]; then
+          echo "### Unit Tests" >> $GITHUB_STEP_SUMMARY
+          find target/surefire-reports -name "*.xml" -exec basename {} \; | head -5 >> $GITHUB_STEP_SUMMARY
+        fi
+        if [ -d "target/failsafe-reports" ]; then
+          echo "### Integration Tests" >> $GITHUB_STEP_SUMMARY
+          find target/failsafe-reports -name "*.xml" -exec basename {} \; | head -5 >> $GITHUB_STEP_SUMMARY
+        fi
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    needs: [changes, build]
+    if: needs.changes.outputs.analytics-service == 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('account-analytics-service/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2-analytics-
+          ${{ runner.os }}-m2-
+        
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: analytics-build-artifacts
+        path: account-analytics-service/target/classes/
+        
+    - name: Run SpotBugs Analysis
+      working-directory: ./account-analytics-service
+      run: |
+        mvn compile spotbugs:check -B --no-transfer-progress || echo "SpotBugs analysis completed"
+      continue-on-error: true
+      
+    - name: Run Dependency Check
+      working-directory: ./account-analytics-service
+      run: |
+        mvn org.owasp:dependency-check-maven:check \
+          -DfailBuildOnCVSS=8 \
+          -DskipTests=true \
+          -B --no-transfer-progress
+      continue-on-error: true
+      
+    - name: Upload Code Quality Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: analytics-quality-reports
+        path: |
+          account-analytics-service/target/spotbugsXml.xml
+          account-analytics-service/target/dependency-check-report.html
+        retention-days: 7
+
+  package:
+    name: Package Analytics Service
+    runs-on: ubuntu-latest
+    needs: [changes, build, test]
+    if: |
+      needs.changes.outputs.analytics-service == 'true' && 
+      (github.event_name == 'push' && 
+       (github.ref == 'refs/heads/main' || 
+        github.ref == 'refs/heads/develop' || 
+        github.ref == 'refs/heads/caching-service'))
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('account-analytics-service/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2-analytics-
+          ${{ runner.os }}-m2-
+        
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: analytics-build-artifacts
+        path: account-analytics-service/target/classes/
+        
+    - name: Package application
+      working-directory: ./account-analytics-service
+      run: |
+        mvn package -B --no-transfer-progress \
+          -DskipTests=true \
+          -Dspring.profiles.active=prod
+          
+    - name: Upload JAR artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: analytics-application-jar
+        path: account-analytics-service/target/*.jar
+        retention-days: 30
+        
+    - name: Generate Build Summary
+      run: |
+        echo "## 📦 Analytics Service Package Results" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service**: Account Analytics Service" >> $GITHUB_STEP_SUMMARY
+        echo "- **Java Version**: ${{ env.JAVA_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        ls -la account-analytics-service/target/*.jar >> $GITHUB_STEP_SUMMARY
+
+  docker:
+    name: Build Analytics Docker Image
+    runs-on: ubuntu-latest
+    needs: [changes, package]
+    if: |
+      needs.changes.outputs.analytics-service == 'true' && 
+      github.event_name == 'push' && 
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/caching-service')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download JAR artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: analytics-application-jar
+        path: account-analytics-service/target/
+        
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Docker Hub
+      if: github.ref == 'refs/heads/main'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: |
+          ${{ secrets.DOCKER_HUB_USERNAME }}/portfolio-analytics-service
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix=sha-
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=caching-preview,enable=${{ github.ref == 'refs/heads/caching-service' }}
+          
+    - name: Create Dockerfile for Analytics Service
+      working-directory: ./account-analytics-service
+      run: |
+        cat > Dockerfile << 'EOF'
+        FROM eclipse-temurin:21-jre-alpine
+        
+        RUN addgroup -g 1001 analytics && \
+            adduser -u 1001 -G analytics -s /bin/sh -D analytics
+        
+        WORKDIR /app
+        
+        COPY target/*.jar app.jar
+        
+        RUN chown analytics:analytics app.jar
+        
+        USER analytics
+        
+        EXPOSE 8081
+        
+        HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+          CMD curl -f http://localhost:8081/actuator/health || exit 1
+        
+        ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+        EOF
+        
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./account-analytics-service
+        file: ./account-analytics-service/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.ref == 'refs/heads/main' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha,scope=analytics
+        cache-to: type=gha,mode=max,scope=analytics
+
+  notify:
+    name: Notify Analytics Results
+    runs-on: ubuntu-latest
+    needs: [changes, build, test, code-quality, package, docker]
+    if: always() && needs.changes.outputs.analytics-service == 'true'
+    
+    steps:
+    - name: Generate Final Summary
+      run: |
+        echo "## 🎯 Account Analytics Service Pipeline Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Tests | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Code Quality | ${{ needs.code-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Package | ${{ needs.package.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Docker | ${{ needs.docker.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Notify Success
+      if: |
+        needs.build.result == 'success' && 
+        needs.test.result == 'success'
+      run: |
+        echo "✅ Analytics Service pipeline completed successfully!"
+        echo "Ready for deployment and integration with banking service"
+        
+    - name: Notify Failure
+      if: |
+        needs.build.result == 'failure' || 
+        needs.test.result == 'failure'
+      run: |
+        echo "❌ Analytics Service pipeline failed!"
+        echo "Check the logs and fix issues before proceeding"
+        exit 1
