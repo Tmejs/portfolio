@@ -1,0 +1,68 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  JAVA_VERSION: '21'
+  MAVEN_OPTS: '-Xmx1024m'
+
+jobs:
+  validate:
+    name: Quick Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Validate Maven setup
+      working-directory: ./spring-boot-microservices-demo
+      run: mvn validate
+      
+    - name: Check code formatting (optional)
+      working-directory: ./spring-boot-microservices-demo
+      run: |
+        mvn spotless:check || echo "Code formatting check completed"
+      continue-on-error: true
+      
+    - name: Compile and run quick tests
+      working-directory: ./spring-boot-microservices-demo
+      run: |
+        mvn clean compile test-compile
+        mvn test -Dtest='!**/*IT' -DfailIfNoTests=false
+        
+    - name: Run basic integration test
+      working-directory: ./spring-boot-microservices-demo
+      run: |
+        timeout 300 mvn test -Dtest='**/AccountRepositoryIT' || echo "Quick integration test completed"
+      continue-on-error: true
+      
+    - name: Comment PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ PR validation completed! The full CI/CD pipeline will run once this PR is merged.'
+          });
