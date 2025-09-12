@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
  * - PostgreSQL integration with JPA
  * - Redis for caching
  * - Kafka for async messaging
+ * - Kafka for async messaging and event streaming
  * - Modern Java 24 syntax and features
  */
 @SpringBootApplication
