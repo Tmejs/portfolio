@@ -172,6 +172,8 @@
                     <excludes>
                         <exclude>**/*IT.java</exclude>
                     </excludes>
+                    <!-- Don't fail if no unit tests are found -->
+                    <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                 </configuration>
             </plugin>
             <plugin>
