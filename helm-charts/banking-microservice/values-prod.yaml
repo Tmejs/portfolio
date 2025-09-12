@@ -1,0 +1,136 @@
+# Production environment specific values
+replicaCount: 3
+
+image:
+  repository: banking-microservice
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"  # Use specific version tags in production
+
+app:
+  profile: "prod"
+  jvm:
+    heapSize: "1g"
+    options: "-XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+
+# Production resource limits
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 1000m
+    memory: 1Gi
+
+# Enable autoscaling in production
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Database configuration (values will be populated by Terraform)
+database:
+  secretName: "banking-db-secret"
+  host: ""  # Will be set via --set-string database.host=<terraform_output>
+  port: 5432
+  name: "portfolio_banking"
+  schema: "banking"
+
+# Redis configuration (values will be populated by Terraform)
+redis:
+  host: ""  # Will be set via --set-string redis.host=<terraform_output>
+  port: 6379
+  timeout: 2000
+
+# Kafka configuration
+kafka:
+  bootstrapServers: "kafka-cluster:9092"  # Production Kafka cluster
+  consumerGroupId: "banking-service-prod"
+
+# External secrets configuration
+externalSecrets:
+  enabled: true
+  secretStore:
+    name: "aws-secrets-manager"
+    kind: "SecretStore"
+  refreshInterval: "1h"  # Less frequent refresh in production
+
+# Service Account with IRSA annotation
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: ""  # Will be set via --set-string
+
+# Production ingress configuration
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-west-2:123456789012:certificate/example"
+  hosts:
+    - host: banking-api.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: banking-api-tls
+      hosts:
+        - banking-api.example.com
+
+# Strict health checks for production
+healthCheck:
+  enabled: true
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessCheck:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Enable metrics
+metrics:
+  enabled: true
+
+# Production pod security
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+
+podSecurityContext:
+  fsGroup: 2000
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# Production affinity rules for high availability
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - banking-microservice
+        topologyKey: kubernetes.io/hostname
+
+# Resource quotas and limits
+nodeSelector:
+  kubernetes.io/arch: amd64

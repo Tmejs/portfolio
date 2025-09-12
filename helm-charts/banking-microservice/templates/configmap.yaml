@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "banking-microservice.fullname" . }}-config
+  labels:
+    {{- include "banking-microservice.labels" . | nindent 4 }}
+data:
+  # Spring Boot configuration
+  SPRING_APPLICATION_NAME: "banking-microservice"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "when-authorized"
+  
+  # Logging configuration
+  LOGGING_LEVEL_COM_PORTFOLIO_DEMO: "INFO"
+  LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB: "INFO"
+  LOGGING_LEVEL_ORG_HIBERNATE_SQL: "DEBUG"
+  LOGGING_LEVEL_ORG_HIBERNATE_TYPE_DESCRIPTOR_SQL_BASICBINDER: "TRACE"
+  
+  # JPA configuration
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "validate"
+  SPRING_JPA_SHOW_SQL: "false"
+  SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: "org.hibernate.dialect.PostgreSQLDialect"
+  SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
+  SPRING_JPA_PROPERTIES_HIBERNATE_JDBC_TIME_ZONE: "UTC"
+  
+  # Flyway configuration
+  SPRING_FLYWAY_ENABLED: "true"
+  SPRING_FLYWAY_LOCATIONS: "classpath:db/migration"
+  SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+  SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
+  
+  # Kafka configuration
+  SPRING_KAFKA_CONSUMER_AUTO_OFFSET_RESET: "earliest"
+  SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER: "org.apache.kafka.common.serialization.StringDeserializer"
+  SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER: "org.springframework.kafka.support.serializer.JsonDeserializer"
+  SPRING_KAFKA_CONSUMER_PROPERTIES_SPRING_JSON_TRUSTED_PACKAGES: "com.portfolio.demo.dto.message"
+  SPRING_KAFKA_PRODUCER_KEY_SERIALIZER: "org.apache.kafka.common.serialization.StringSerializer"
+  SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER: "org.springframework.kafka.support.serializer.JsonSerializer"
+  SPRING_KAFKA_PRODUCER_PROPERTIES_SPRING_JSON_ADD_TYPE_HEADERS: "false"
+  
+  # Custom application properties
+  BANKING_ACCOUNT_NUMBER_PREFIX: "ACC"
+  BANKING_TRANSACTION_REFERENCE_PREFIX: "TXN"
+  BANKING_MESSAGING_KAFKA_TOPICS_ACCOUNT_CREATED: "banking.account.created"
+  BANKING_MESSAGING_KAFKA_TOPICS_TRANSACTION_CREATED: "banking.transaction.created"
+  BANKING_MESSAGING_KAFKA_TOPICS_TRANSACTION_TRANSFER: "banking.transaction.transfer"
+  BANKING_MESSAGING_KAFKA_TOPICS_PARTITIONS: "3"
+  BANKING_MESSAGING_KAFKA_TOPICS_REPLICATION_FACTOR: "1"
