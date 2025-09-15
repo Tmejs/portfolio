@@ -38,8 +38,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.banking-service == 'true'
-    name: Quick Validation
-    runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
