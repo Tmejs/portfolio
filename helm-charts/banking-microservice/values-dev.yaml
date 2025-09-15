@@ -1,0 +1,90 @@
+# Development environment specific values
+replicaCount: 1
+
+image:
+  repository: banking-microservice
+  pullPolicy: Always
+  tag: "latest"
+
+app:
+  profile: "dev"
+  jvm:
+    heapSize: "256m"
+    options: "-XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75"
+
+# Resource limits for development
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Disable autoscaling in dev
+autoscaling:
+  enabled: false
+
+# Database configuration (values will be populated by Terraform)
+database:
+  secretName: "banking-db-secret"
+  host: ""  # Will be set via --set-string database.host=<terraform_output>
+  port: 5432
+  name: "portfolio_banking"
+  schema: "banking"
+
+# Redis configuration (values will be populated by Terraform)
+redis:
+  host: ""  # Will be set via --set-string redis.host=<terraform_output>
+  port: 6379
+  timeout: 2000
+
+# Kafka configuration (for local development, consider using a lightweight setup)
+kafka:
+  bootstrapServers: "kafka:9092"  # Assumes Kafka running in the same cluster
+  consumerGroupId: "banking-service"
+
+# External secrets configuration
+externalSecrets:
+  enabled: true
+  secretStore:
+    name: "aws-secrets-manager"
+    kind: "SecretStore"
+  refreshInterval: "5m"  # More frequent refresh in dev
+
+# Service Account with IRSA annotation
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: ""  # Will be set via --set-string
+
+# Ingress for development (optional)
+ingress:
+  enabled: false  # Can be enabled for dev testing
+  className: "alb"
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+  hosts:
+    - host: banking-dev.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Relaxed health checks for development
+healthCheck:
+  enabled: true
+  initialDelaySeconds: 20
+  periodSeconds: 30
+  failureThreshold: 5
+
+readinessCheck:
+  enabled: true
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 5
+
+# Enable metrics
+metrics:
+  enabled: true
