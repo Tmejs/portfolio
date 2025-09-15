@@ -30,10 +30,12 @@ jobs:
         with:
           filters: |
             banking-service:
-              - 'spring-boot-microservices-demo/**'
+              - 'microservices/banking-service/**'
+              - 'microservices/pom.xml'
               - '.github/workflows/ci-cd.yml'
             analytics-service:
-              - 'account-analytics-service/**'
+              - 'microservices/analytics-service/**'
+              - 'microservices/pom.xml'
               - '.github/workflows/account-analytics-service.yml'
 
   build:
@@ -61,14 +63,16 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
         
     - name: Compile application
-      working-directory: ./spring-boot-microservices-demo
+      working-directory: ./microservices
       run: mvn clean compile -B --no-transfer-progress
       
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: build-artifacts
-        path: spring-boot-microservices-demo/target/classes/
+        path: |
+          microservices/banking-service/target/classes/
+          microservices/analytics-service/target/classes/
         retention-days: 1
 
   test:
@@ -103,19 +107,17 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: build-artifacts
-        path: spring-boot-microservices-demo/target/classes/
+        path: microservices/
         
     - name: Run Unit Tests
       if: matrix.test-type == 'unit'
-      working-directory: ./spring-boot-microservices-demo
+      working-directory: ./microservices
       run: |
-        mvn test -B --no-transfer-progress \
-          -Dtest='!**/*IT' \
-          -DfailIfNoTests=false
+        mvn test -B --no-transfer-progress
           
     - name: Run Integration Tests
       if: matrix.test-type == 'integration'
-      working-directory: ./spring-boot-microservices-demo
+      working-directory: ./microservices
       run: |
         mvn verify -B --no-transfer-progress \
           -DskipUnitTests=true \
@@ -127,8 +129,10 @@ jobs:
       with:
         name: test-reports-${{ matrix.test-type }}
         path: |
-          spring-boot-microservices-demo/target/surefire-reports/
-          spring-boot-microservices-demo/target/failsafe-reports/
+          microservices/banking-service/target/surefire-reports/
+          microservices/banking-service/target/failsafe-reports/
+          microservices/analytics-service/target/surefire-reports/
+          microservices/analytics-service/target/failsafe-reports/
         retention-days: 7
         
     - name: Upload Coverage Reports
@@ -136,7 +140,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: coverage-reports
-        path: spring-boot-microservices-demo/target/site/jacoco/
+        path: |
+          microservices/banking-service/target/site/jacoco/
+          microservices/analytics-service/target/site/jacoco/
         retention-days: 7
 
   package:
@@ -170,10 +176,10 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: build-artifacts
-        path: spring-boot-microservices-demo/target/classes/
+        path: microservices/
         
     - name: Package application
-      working-directory: ./spring-boot-microservices-demo
+      working-directory: ./microservices
       run: |
         mvn package -B --no-transfer-progress \
           -DskipTests=true \
@@ -183,7 +189,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: application-jar
-        path: spring-boot-microservices-demo/target/*.jar
+        path: microservices/banking-service/target/*.jar
         retention-days: 30
 
   docker:
@@ -203,7 +209,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: application-jar
-        path: spring-boot-microservices-demo/target/
+        path: microservices/banking-service/target/
         
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -231,8 +237,8 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ./spring-boot-microservices-demo
-        file: ./spring-boot-microservices-demo/Dockerfile
+        context: ./microservices/banking-service
+        file: ./microservices/banking-service/Dockerfile
         platforms: linux/amd64,linux/arm64
         push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         tags: ${{ steps.meta.outputs.tags }}
@@ -289,7 +295,7 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
         
     - name: Run OWASP Dependency Check
-      working-directory: ./spring-boot-microservices-demo
+      working-directory: ./microservices
       run: |
         mvn org.owasp:dependency-check-maven:check \
           -DfailBuildOnCVSS=7 \
@@ -301,7 +307,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: security-reports
-        path: spring-boot-microservices-demo/target/dependency-check-report.html
+        path: microservices/banking-service/target/dependency-check-report.html
         retention-days: 7
 
   notify:
