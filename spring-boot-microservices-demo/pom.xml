@@ -16,7 +16,7 @@
     <artifactId>spring-boot-microservices-demo</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>Spring Boot Microservices Demo</name>
-    <description>A comprehensive Spring Boot application demonstrating modern Java 24 features, CRUD operations, async processing, PostgreSQL, Redis, and Kafka integration</description>
+    <description>A comprehensive Spring Boot application demonstrating modern Java 21 features, CRUD operations, async processing, PostgreSQL, Redis, and Kafka integration</description>
 
     <properties>
         <java.version>21</java.version>

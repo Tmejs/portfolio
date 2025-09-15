@@ -253,14 +253,6 @@ jobs:
           echo "✅ Docker image built and pushed successfully"
         fi
 
-    - name: Docker push status
-      run: |
-        if [[ "${{ secrets.DOCKER_HUB_USERNAME }}" == "" || "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" == "" ]]; then
-          echo "⚠️  Docker push skipped - Docker Hub credentials not configured"
-          echo "To enable Docker push, configure DOCKER_HUB_USERNAME and DOCKER_HUB_ACCESS_TOKEN secrets"
-        else
-          echo "✅ Docker image built and pushed successfully"
-        fi
 
     - name: Upload Docker image info
       if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.DOCKER_HUB_USERNAME != '' && secrets.DOCKER_HUB_ACCESS_TOKEN != ''

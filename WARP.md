@@ -3,7 +3,7 @@
 This file provides guidance to WARP (warp.dev) when working with code in this repository.
 
 Repository overview
-- spring-boot-microservices-demo: Spring Boot 3.3.4 banking application targeting Java 24 (preview features enabled). Integrates PostgreSQL (JPA/Flyway) with banking schema, Redis, Kafka, Micrometer/Prometheus, OpenAPI, Testcontainers.
+- spring-boot-microservices-demo: Spring Boot 3.3.4 banking application targeting Java 21. Integrates PostgreSQL (JPA/Flyway) with banking schema, Redis, Kafka, Micrometer/Prometheus, OpenAPI, Testcontainers.
 - aws-infrastructure-terraform: Terraform IaC to provision AWS networking and compute (VPC, EKS), with local development flow via LocalStack.
 
 Common commands
@@ -20,7 +20,7 @@ Common commands
   - Install artifact locally
     - mvn -f spring-boot-microservices-demo/pom.xml clean install
   - Notes
-    - Java 24 preview is enabled via maven-compiler-plugin and surefire (argLine --enable-preview).
+    - Java 21 is configured via maven-compiler-plugin.
     - No explicit linter is configured in pom.xml.
 
 - Infrastructure (aws-infrastructure-terraform)
@@ -76,7 +76,7 @@ High-level architecture and structure
 
 Important references from READMEs
 - Spring Boot README
-  - Java 24 setup (sdkman), tech stack, API docs endpoints once running (Swagger UI /v3 docs, Actuator health/metrics), and Docker-based local dependencies (PostgreSQL, Redis, Kafka) guidance.
+- Java 21 setup (sdkman), tech stack, API docs endpoints once running (Swagger UI /v3 docs, Actuator health/metrics), and Docker-based local dependencies (PostgreSQL, Redis, Kafka) guidance.
   - Testing commands including class-specific runs and verify for integration tests.
 - Terraform README
   - End-to-end LocalStack flow, AWS deploy flow, and layout/notes regarding cost controls and terraform fmt/validate usage.
@@ -95,6 +95,6 @@ Database architecture
 
 Conventions and expectations for agents
 - Prefer project-scoped commands provided above (mvn with -f path and terraform -chdir) to avoid cd state.
-- When working with Java preview features, ensure commands that fork the JVM for tests respect the existing pom configuration (Surefire argLine is already set).
+- Maven compiler and Surefire plugins are configured for Java 21 compatibility.
 - When creating new database entities, always specify schema="banking" in @Table annotation.
 - All Flyway migrations should operate within banking schema using SET search_path TO banking.
