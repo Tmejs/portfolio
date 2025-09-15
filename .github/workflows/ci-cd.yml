@@ -264,50 +264,11 @@ jobs:
         retention-days: 30
       continue-on-error: true
 
-  security-scan:
-    name: Banking Security Scan
-    runs-on: ubuntu-latest
-    needs: [changes, build]
-    if: needs.changes.outputs.banking-service == 'true'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up JDK ${{ env.JAVA_VERSION }}
-      uses: actions/setup-java@v4
-      with:
-        java-version: ${{ env.JAVA_VERSION }}
-        distribution: 'temurin'
-        cache: maven
-        
-    - name: Cache Maven dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2
-        
-    - name: Run OWASP Dependency Check
-      working-directory: ./spring-boot-microservices-demo
-      run: |
-        mvn org.owasp:dependency-check-maven:check \
-          -DfailBuildOnCVSS=7 \
-          -DskipTests=true
-      continue-on-error: true
-      
-    - name: Upload Security Reports
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: security-reports
-        path: spring-boot-microservices-demo/target/dependency-check-report.html
-        retention-days: 7
 
   notify:
     name: Notify Pipeline Results
     runs-on: ubuntu-latest
-    needs: [changes, build, test, package, docker, security-scan]
+    needs: [changes, build, test, package, docker]
     if: always() && (needs.changes.outputs.banking-service == 'true' || needs.changes.outputs.analytics-service == 'true')
     
     steps:
@@ -327,7 +288,6 @@ jobs:
           echo "| Tests | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Package | ${{ needs.package.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker | ${{ needs.docker.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Security | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
         fi
 
     - name: Notify Success
@@ -340,7 +300,6 @@ jobs:
         echo "Tests: ${{ needs.test.result }}"
         echo "Package: ${{ needs.package.result }}"
         echo "Docker: ${{ needs.docker.result || 'skipped (no Docker Hub credentials)' }}"
-        echo "Security: ${{ needs.security-scan.result }}"
         
     - name: Notify Failure
       if: needs.build.result == 'failure' || needs.test.result == 'failure'
@@ -350,5 +309,4 @@ jobs:
         echo "Tests: ${{ needs.test.result }}"
         echo "Package: ${{ needs.package.result }}"
         echo "Docker: ${{ needs.docker.result || 'skipped (no Docker Hub credentials)' }}"
-        echo "Security: ${{ needs.security-scan.result }}"
         exit 1

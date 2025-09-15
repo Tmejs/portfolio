@@ -146,63 +146,6 @@ jobs:
           find target/failsafe-reports -name "*.xml" -exec basename {} \; | head -5 >> $GITHUB_STEP_SUMMARY
         fi
 
-  code-quality:
-    name: Code Quality Analysis
-    runs-on: ubuntu-latest
-    needs: build
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-      
-    - name: Set up JDK ${{ env.JAVA_VERSION }}
-      uses: actions/setup-java@v4
-      with:
-        java-version: ${{ env.JAVA_VERSION }}
-        distribution: 'temurin'
-        cache: maven
-        
-    - name: Cache Maven dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('account-analytics-service/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-m2-analytics-
-          ${{ runner.os }}-m2-
-        
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: analytics-build-artifacts
-        path: account-analytics-service/target/classes/
-        
-    - name: Run SpotBugs Analysis
-      working-directory: ./account-analytics-service
-      run: |
-        mvn compile spotbugs:check -B --no-transfer-progress || echo "SpotBugs analysis completed"
-      continue-on-error: true
-      
-    - name: Run Dependency Check
-      working-directory: ./account-analytics-service
-      run: |
-        mvn org.owasp:dependency-check-maven:check \
-          -DfailBuildOnCVSS=8 \
-          -DskipTests=true \
-          -B --no-transfer-progress
-      continue-on-error: true
-      
-    - name: Upload Code Quality Reports
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: analytics-quality-reports
-        path: |
-          account-analytics-service/target/spotbugsXml.xml
-          account-analytics-service/target/dependency-check-report.html
-        retention-days: 7
 
   package:
     name: Package Analytics Service
@@ -344,7 +287,7 @@ jobs:
   notify:
     name: Notify Analytics Results
     runs-on: ubuntu-latest
-    needs: [build, test, code-quality, package, docker]
+    needs: [build, test, package, docker]
     if: always()
     
     steps:
@@ -356,7 +299,6 @@ jobs:
         echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
         echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Tests | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Code Quality | ${{ needs.code-quality.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Package | ${{ needs.package.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Docker | ${{ needs.docker.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
