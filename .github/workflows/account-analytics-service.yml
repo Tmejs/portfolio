@@ -4,14 +4,12 @@ on:
   push:
     branches: [ main, develop, caching-service ]
     paths:
-      - 'microservices/analytics-service/**'
-      - 'microservices/pom.xml'
+      - 'account-analytics-service/**'
       - '.github/workflows/account-analytics-service.yml'
   pull_request:
     branches: [ main, develop ]
     paths:
-      - 'microservices/analytics-service/**'
-      - 'microservices/pom.xml'
+      - 'account-analytics-service/**'
       - '.github/workflows/account-analytics-service.yml'
 
 env:
@@ -40,24 +38,24 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.m2
-        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('microservices/analytics-service/pom.xml') }}
+        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('account-analytics-service/pom.xml') }}
         restore-keys: |
           ${{ runner.os }}-m2-analytics-
           ${{ runner.os }}-m2-
         
     - name: Validate Maven setup
-      working-directory: ./microservices
+      working-directory: ./account-analytics-service
       run: mvn validate -B --no-transfer-progress
         
     - name: Compile application
-      working-directory: ./microservices
+      working-directory: ./account-analytics-service
       run: mvn clean compile -B --no-transfer-progress
       
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: analytics-build-artifacts
-        path: microservices/analytics-service/target/classes/
+        path: account-analytics-service/target/classes/
         retention-days: 1
 
   test:
@@ -85,7 +83,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.m2
-        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('microservices/analytics-service/pom.xml') }}
+        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('account-analytics-service/pom.xml') }}
         restore-keys: |
           ${{ runner.os }}-m2-analytics-
           ${{ runner.os }}-m2-
@@ -94,7 +92,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: analytics-build-artifacts
-        path: microservices/analytics-service/target/classes/
+        path: account-analytics-service/target/classes/
         
     - name: Set up Docker (for Testcontainers)
       uses: docker/setup-buildx-action@v3
@@ -106,7 +104,7 @@ jobs:
         
     - name: Run Unit Tests
       if: matrix.test-type == 'unit'
-      working-directory: ./microservices/analytics-service
+      working-directory: ./account-analytics-service
       run: |
         mvn test -B --no-transfer-progress \
           -Dtest='!**/*IT' \
@@ -115,7 +113,7 @@ jobs:
           
     - name: Run Integration Tests with Testcontainers
       if: matrix.test-type == 'integration'
-      working-directory: ./microservices/analytics-service
+      working-directory: ./account-analytics-service
       run: |
         mvn verify -B --no-transfer-progress \
           -DskipUnitTests=true \
@@ -130,13 +128,13 @@ jobs:
       with:
         name: analytics-test-reports-${{ matrix.test-type }}
         path: |
-          microservices/analytics-service/target/surefire-reports/
-          microservices/analytics-service/target/failsafe-reports/
+          account-analytics-service/target/surefire-reports/
+          account-analytics-service/target/failsafe-reports/
         retention-days: 7
         
     - name: Generate Test Summary
       if: always()
-      working-directory: ./microservices/analytics-service
+      working-directory: ./account-analytics-service
       run: |
         echo "## 🧪 Analytics Service Test Results (${{ matrix.test-type }})" >> $GITHUB_STEP_SUMMARY
         if [ -d "target/surefire-reports" ]; then
@@ -147,6 +145,64 @@ jobs:
           echo "### Integration Tests" >> $GITHUB_STEP_SUMMARY
           find target/failsafe-reports -name "*.xml" -exec basename {} \; | head -5 >> $GITHUB_STEP_SUMMARY
         fi
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('account-analytics-service/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-m2-analytics-
+          ${{ runner.os }}-m2-
+        
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: analytics-build-artifacts
+        path: account-analytics-service/target/classes/
+        
+    - name: Run SpotBugs Analysis
+      working-directory: ./account-analytics-service
+      run: |
+        mvn compile spotbugs:check -B --no-transfer-progress || echo "SpotBugs analysis completed"
+      continue-on-error: true
+      
+    - name: Run Dependency Check
+      working-directory: ./account-analytics-service
+      run: |
+        mvn org.owasp:dependency-check-maven:check \
+          -DfailBuildOnCVSS=8 \
+          -DskipTests=true \
+          -B --no-transfer-progress
+      continue-on-error: true
+      
+    - name: Upload Code Quality Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: analytics-quality-reports
+        path: |
+          account-analytics-service/target/spotbugsXml.xml
+          account-analytics-service/target/dependency-check-report.html
+        retention-days: 7
 
   package:
     name: Package Analytics Service
@@ -173,7 +229,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.m2
-        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('microservices/analytics-service/pom.xml') }}
+        key: ${{ runner.os }}-m2-analytics-${{ hashFiles('account-analytics-service/pom.xml') }}
         restore-keys: |
           ${{ runner.os }}-m2-analytics-
           ${{ runner.os }}-m2-
@@ -182,10 +238,10 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: analytics-build-artifacts
-        path: microservices/analytics-service/target/classes/
+        path: account-analytics-service/target/classes/
         
     - name: Package application
-      working-directory: ./microservices/analytics-service
+      working-directory: ./account-analytics-service
       run: |
         mvn package -B --no-transfer-progress \
           -DskipTests=true \
@@ -195,7 +251,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: analytics-application-jar
-        path: microservices/analytics-service/target/*.jar
+        path: account-analytics-service/target/*.jar
         retention-days: 30
         
     - name: Generate Build Summary
@@ -205,7 +261,7 @@ jobs:
         echo "- **Java Version**: ${{ env.JAVA_VERSION }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-        ls -la microservices/analytics-service/target/*.jar >> $GITHUB_STEP_SUMMARY
+        ls -la account-analytics-service/target/*.jar >> $GITHUB_STEP_SUMMARY
 
   docker:
     name: Build Analytics Docker Image
@@ -223,7 +279,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: analytics-application-jar
-        path: microservices/analytics-service/target/
+        path: account-analytics-service/target/
         
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -249,7 +305,7 @@ jobs:
           type=raw,value=caching-preview,enable=${{ github.ref == 'refs/heads/caching-service' }}
           
     - name: Create Dockerfile for Analytics Service
-      working-directory: ./microservices/analytics-service
+      working-directory: ./account-analytics-service
       run: |
         cat > Dockerfile << 'EOF'
         FROM eclipse-temurin:21-jre-alpine
@@ -276,8 +332,8 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ./microservices/analytics-service
-        file: ./microservices/analytics-service/Dockerfile
+        context: ./account-analytics-service
+        file: ./account-analytics-service/Dockerfile
         platforms: linux/amd64,linux/arm64
         push: ${{ github.ref == 'refs/heads/main' }}
         tags: ${{ steps.meta.outputs.tags }}
@@ -288,7 +344,7 @@ jobs:
   notify:
     name: Notify Analytics Results
     runs-on: ubuntu-latest
-    needs: [build, test, package, docker]
+    needs: [build, test, code-quality, package, docker]
     if: always()
     
     steps:
@@ -300,6 +356,7 @@ jobs:
         echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
         echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Tests | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Code Quality | ${{ needs.code-quality.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Package | ${{ needs.package.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Docker | ${{ needs.docker.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY

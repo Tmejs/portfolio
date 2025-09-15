@@ -3,65 +3,45 @@
 This file provides guidance to WARP (warp.dev) when working with code in this repository.
 
 Repository overview
-- microservices/: Multi-module Maven project containing all Spring Boot microservices
-  - banking-service/: Spring Boot 3.3.4 banking application targeting Java 21. Integrates PostgreSQL (JPA/Flyway) with banking schema, Redis, Kafka, Micrometer/Prometheus, OpenAPI, Testcontainers.
-  - analytics-service/: Analytics microservice with MongoDB, Redis caching, and Kafka event processing
-  - pom.xml: Parent POM with shared dependencies and build configuration
-- infra/: Infrastructure as code
-  - aws-infrastructure-terraform/: Terraform IaC to provision AWS networking and compute (VPC, EKS), with local development flow via LocalStack.
+- spring-boot-microservices-demo: Spring Boot 3.3.4 banking application targeting Java 21. Integrates PostgreSQL (JPA/Flyway) with banking schema, Redis, Kafka, Micrometer/Prometheus, OpenAPI, Testcontainers.
+- aws-infrastructure-terraform: Terraform IaC to provision AWS networking and compute (VPC, EKS), with local development flow via LocalStack.
 
 Common commands
-- Microservices (all services)
-  - Build all services
-    - mvn -f microservices/pom.xml clean compile
-  - Run all tests: mvn -f microservices/pom.xml test
-  - Run all integration tests: mvn -f microservices/pom.xml verify
-  - Install all artifacts locally
-    - mvn -f microservices/pom.xml clean install
-
-- Banking Service
+- Spring Boot app (spring-boot-microservices-demo)
   - Build
-    - mvn -f microservices/banking-service/pom.xml clean compile
+    - mvn -f spring-boot-microservices-demo/pom.xml clean compile
   - Run (dev)
-    - mvn -f microservices/banking-service/pom.xml spring-boot:run
+    - mvn -f spring-boot-microservices-demo/pom.xml spring-boot:run
   - Tests
-    - Run all tests: mvn -f microservices/banking-service/pom.xml test
-    - Run integration tests: mvn -f microservices/banking-service/pom.xml verify
-    - Run a single test class: mvn -f microservices/banking-service/pom.xml test -Dtest=UserServiceTest
-    - Run a single test method: mvn -f microservices/banking-service/pom.xml test -Dtest=UserServiceTest#methodName
-
-- Analytics Service
-  - Build
-    - mvn -f microservices/analytics-service/pom.xml clean compile
-  - Run (dev)
-    - mvn -f microservices/analytics-service/pom.xml spring-boot:run
-  - Tests
-    - Run all tests: mvn -f microservices/analytics-service/pom.xml test
-    - Run integration tests: mvn -f microservices/analytics-service/pom.xml verify
-
+    - Run all tests: mvn -f spring-boot-microservices-demo/pom.xml test
+    - Run integration tests (includes Testcontainers): mvn -f spring-boot-microservices-demo/pom.xml verify
+    - Run a single test class: mvn -f spring-boot-microservices-demo/pom.xml test -Dtest=UserServiceTest
+    - Run a single test method: mvn -f spring-boot-microservices-demo/pom.xml test -Dtest=UserServiceTest#methodName
+  - Install artifact locally
+    - mvn -f spring-boot-microservices-demo/pom.xml clean install
   - Notes
-    - Java 21 is configured via maven-compiler-plugin in parent POM.
-    - Shared dependencies and plugin configuration managed by parent POM.
+    - Java 21 is configured via maven-compiler-plugin.
+    - No explicit linter is configured in pom.xml.
 
-- Infrastructure (infra/aws-infrastructure-terraform)
+- Infrastructure (aws-infrastructure-terraform)
   - Local development with LocalStack
-    - Start LocalStack: docker-compose -f infra/aws-infrastructure-terraform/docker-compose.localstack.yml up -d
+    - Start LocalStack: docker-compose -f aws-infrastructure-terraform/docker-compose.localstack.yml up -d
     - Health check: curl http://localhost:4566/health
     - Init/plan/apply against LocalStack:
-      - (cd infra/aws-infrastructure-terraform && terraform init)
-      - terraform -chdir=infra/aws-infrastructure-terraform plan -var-file="localstack.tfvars"
-      - terraform -chdir=infra/aws-infrastructure-terraform apply -var-file="localstack.tfvars" -auto-approve
+      - (cd aws-infrastructure-terraform && terraform init)
+      - terraform -chdir=aws-infrastructure-terraform plan -var-file="localstack.tfvars"
+      - terraform -chdir=aws-infrastructure-terraform apply -var-file="localstack.tfvars" -auto-approve
     - Inspect resources (examples):
       - awslocal ec2 describe-vpcs
       - awslocal rds describe-db-instances
       - awslocal elasticache describe-cache-clusters
     - Cleanup:
-      - terraform -chdir=infra/aws-infrastructure-terraform destroy -var-file="localstack.tfvars" -auto-approve
-      - docker-compose -f infra/aws-infrastructure-terraform/docker-compose.localstack.yml down -v
+      - terraform -chdir=aws-infrastructure-terraform destroy -var-file="localstack.tfvars" -auto-approve
+      - docker-compose -f aws-infrastructure-terraform/docker-compose.localstack.yml down -v
   - Deploy to AWS
-    - terraform -chdir=infra/aws-infrastructure-terraform init
-    - terraform -chdir=infra/aws-infrastructure-terraform plan
-    - terraform -chdir=infra/aws-infrastructure-terraform apply
+    - terraform -chdir=aws-infrastructure-terraform init
+    - terraform -chdir=aws-infrastructure-terraform plan
+    - terraform -chdir=aws-infrastructure-terraform apply
     - Configure kubectl for EKS (region/name from README):
       - aws eks update-kubeconfig --region us-west-2 --name portfolio-microservices-dev-eks
       - kubectl get nodes
@@ -102,10 +82,8 @@ Important references from READMEs
   - End-to-end LocalStack flow, AWS deploy flow, and layout/notes regarding cost controls and terraform fmt/validate usage.
 
 Paths and entry points
-- Banking service entry: microservices/banking-service/src/main/java/com/portfolio/demo/MicroservicesDemoApplication.java
-- Analytics service entry: microservices/analytics-service/src/main/java/com/portfolio/analytics/AccountAnalyticsServiceApplication.java
-- Microservices parent POM: microservices/pom.xml
-- Terraform root: infra/aws-infrastructure-terraform/
+- Application entry: spring-boot-microservices-demo/src/main/java/com/portfolio/demo/MicroservicesDemoApplication.java
+- Terraform root: aws-infrastructure-terraform/
 
 Database architecture
 - Uses PostgreSQL with schema-based separation for multi-service architecture
