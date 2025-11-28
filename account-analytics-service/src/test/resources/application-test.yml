@@ -1,8 +1,14 @@
 # Test configuration for account-analytics-service
 
 spring:
+  # Disable auto-configuration for Kafka in tests
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+  
+  # Kafka Configuration (fallback if not disabled)
   kafka:
-    bootstrap-servers: localhost:9097
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
     consumer:
       group-id: account-analytics-service-test
       auto-offset-reset: earliest
@@ -20,6 +26,8 @@ kafka:
     transaction-events: transaction-events
     account-events: account-events
     analytics-notifications: analytics-notifications
+  # Disable Kafka functionality in tests
+  enabled: false
 
 # Logging Configuration for Testing
 logging:

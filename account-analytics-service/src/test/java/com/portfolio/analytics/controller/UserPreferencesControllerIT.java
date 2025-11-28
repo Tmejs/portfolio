@@ -1,6 +1,7 @@
 package com.portfolio.analytics.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.portfolio.analytics.BaseAnalyticsIT;
 import com.portfolio.analytics.model.UserPreferences;
 import com.portfolio.analytics.service.UserPreferencesService;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(UserPreferencesController.class)
 @ActiveProfiles("test")
 @DisplayName("UserPreferences Controller Integration Tests")
-class UserPreferencesControllerIT {
+class UserPreferencesControllerIT extends BaseAnalyticsIT {
 
     @Autowired
     private MockMvc mockMvc;

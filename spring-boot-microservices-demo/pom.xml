@@ -27,6 +27,13 @@
     </properties>
 
     <dependencies>
+        <!-- Shared DTOs -->
+        <dependency>
+            <groupId>com.portfolio</groupId>
+            <artifactId>shared-dtos</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        
         <!-- Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

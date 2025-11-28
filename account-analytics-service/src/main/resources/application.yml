@@ -23,7 +23,7 @@ spring:
     # MongoDB Configuration
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/analytics}
-      auto-index-creation: true
+#      auto-index-creation: true
 
   # Kafka Configuration
   kafka:
