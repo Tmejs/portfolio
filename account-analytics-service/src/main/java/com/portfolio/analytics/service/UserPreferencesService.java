@@ -64,7 +64,6 @@ public class UserPreferencesService {
         
         existing.setNotificationsEnabled(updates.isNotificationsEnabled());
         existing.setLastUpdated(LocalDateTime.now());
-
         return userPreferencesRepository.save(existing);
     }
 

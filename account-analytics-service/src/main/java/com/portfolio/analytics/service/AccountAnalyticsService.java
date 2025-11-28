@@ -1,5 +1,6 @@
 package com.portfolio.analytics.service;
 
+import com.portfolio.shared.dto.TransactionData;
 import com.portfolio.analytics.model.AccountAnalytics;
 import com.portfolio.analytics.repository.AccountAnalyticsRepository;
 import lombok.RequiredArgsConstructor;
@@ -239,16 +240,4 @@ public class AccountAnalyticsService {
             .setScale(2, RoundingMode.HALF_UP);
     }
 
-    // Helper class for transaction data
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
-    public static class TransactionData {
-        private String transactionId;
-        private BigDecimal amount;
-        private String category;
-        private LocalDateTime transactionDate;
-        private String description;
-    }
 }

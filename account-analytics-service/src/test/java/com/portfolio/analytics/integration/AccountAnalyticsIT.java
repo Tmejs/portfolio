@@ -1,18 +1,13 @@
 package com.portfolio.analytics.integration;
 
+import com.portfolio.analytics.BaseAnalyticsIT;
 import com.portfolio.analytics.model.AccountAnalytics;
+import com.portfolio.analytics.repository.AccountAnalyticsRepository;
 import com.portfolio.analytics.service.AccountAnalyticsService;
-import com.portfolio.analytics.service.AccountAnalyticsService.TransactionData;
+import com.portfolio.shared.dto.TransactionData;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -22,27 +17,13 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@Testcontainers
-@DirtiesContext
-class AccountAnalyticsIT {
-
-    @Container
-    static GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
-        .withExposedPorts(6379)
-        .waitingFor(Wait.forLogMessage(".*Ready to accept connections.*", 1));
-
-    @DynamicPropertySource
-    static void configureRedis(DynamicPropertyRegistry registry) {
-        registry.add("spring.data.redis.host", redis::getHost);
-        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
-        
-        // Disable MongoDB and Kafka for this test
-        registry.add("spring.data.mongodb.uri", () -> "mongodb://disabled:27017/disabled");
-        registry.add("spring.kafka.bootstrap-servers", () -> "disabled");
-    }
+class AccountAnalyticsIT extends BaseAnalyticsIT {
 
     @Autowired
     private AccountAnalyticsService analyticsService;
+    
+    @Autowired
+    private AccountAnalyticsRepository analyticsRepository;
 
     @Test
     void shouldComputeAndCacheAnalytics() {
@@ -338,5 +319,109 @@ class AccountAnalyticsIT {
         // Then - Should not exist
         assertThat(analyticsService.analyticsExist(accountId)).isFalse();
         assertThat(analyticsService.getAccountAnalytics(accountId)).isEmpty();
+    }
+    
+    @Test
+    void shouldPersistToMongoDBAndCacheInRedis() {
+        // Given
+        String accountId = "mongodb-redis-test-123";
+        List<TransactionData> transactions = List.of(
+            TransactionData.builder()
+                .transactionId("t1")
+                .amount(new BigDecimal("2500.00"))
+                .category("SALARY")
+                .transactionDate(LocalDateTime.now().minusDays(10))
+                .description("Monthly salary")
+                .build(),
+            TransactionData.builder()
+                .transactionId("t2")
+                .amount(new BigDecimal("-800.00"))
+                .category("RENT")
+                .transactionDate(LocalDateTime.now().minusDays(5))
+                .description("Monthly rent")
+                .build()
+        );
+
+        // When - Compute and save analytics
+        AccountAnalytics computed = analyticsService.computeAnalytics(accountId, transactions);
+        AccountAnalytics saved = analyticsService.saveAccountAnalytics(computed);
+
+        // Then - Verify data is saved in MongoDB
+        Optional<AccountAnalytics> fromMongo = analyticsRepository.findByAccountId(accountId);
+        assertThat(fromMongo).isPresent();
+        assertThat(fromMongo.get().getAccountId()).isEqualTo(accountId);
+        assertThat(fromMongo.get().getTotalBalance()).isEqualTo(new BigDecimal("1700.00"));
+        assertThat(fromMongo.get().getTotalIncome()).isEqualTo(new BigDecimal("2500.00"));
+        assertThat(fromMongo.get().getTotalExpenses()).isEqualTo(new BigDecimal("800.00"));
+        assertThat(fromMongo.get().getSpendingPattern()).isEqualTo("CONSERVATIVE");
+
+        // And - Verify data is cached in Redis (subsequent call should be from cache)
+        Optional<AccountAnalytics> fromCache = analyticsService.getAccountAnalytics(accountId);
+        assertThat(fromCache).isPresent();
+        assertThat(fromCache.get().getAccountId()).isEqualTo(accountId);
+        assertThat(fromCache.get().getTotalBalance()).isEqualTo(saved.getTotalBalance());
+        
+        // And - Verify MongoDB indexes are working (complex queries)
+        List<AccountAnalytics> byPattern = analyticsRepository.findBySpendingPattern("CONSERVATIVE");
+        assertThat(byPattern).hasSizeGreaterThanOrEqualTo(1);
+        assertThat(byPattern.stream().anyMatch(a -> a.getAccountId().equals(accountId))).isTrue();
+        
+        List<AccountAnalytics> byBalance = analyticsRepository.findByTotalBalanceGreaterThanEqual(new BigDecimal("1500.00"));
+        assertThat(byBalance).hasSizeGreaterThanOrEqualTo(1);
+        assertThat(byBalance.stream().anyMatch(a -> a.getAccountId().equals(accountId))).isTrue();
+    }
+    
+    @Test
+    void shouldHandleCacheEvictionCorrectly() {
+        // Given
+        String accountId = "cache-eviction-test-456";
+        List<TransactionData> initialTransactions = List.of(
+            TransactionData.builder()
+                .transactionId("t1")
+                .amount(new BigDecimal("1000.00"))
+                .category("INCOME")
+                .transactionDate(LocalDateTime.now().minusDays(1))
+                .build()
+        );
+        
+        // When - Save initial analytics
+        AccountAnalytics initial = analyticsService.computeAnalytics(accountId, initialTransactions);
+        analyticsService.saveAccountAnalytics(initial);
+        
+        // Then - Verify it's cached
+        Optional<AccountAnalytics> cached = analyticsService.getAccountAnalytics(accountId);
+        assertThat(cached).isPresent();
+        assertThat(cached.get().getTotalBalance()).isEqualTo(new BigDecimal("1000.00"));
+        
+        // When - Evict cache and update MongoDB directly
+        analyticsService.invalidateAnalytics(accountId);
+        AccountAnalytics updated = AccountAnalytics.builder()
+            .accountId(initial.getAccountId())
+            .totalBalance(new BigDecimal("1500.00"))
+            .totalIncome(initial.getTotalIncome())
+            .totalExpenses(initial.getTotalExpenses())
+            .transactionCount(initial.getTransactionCount())
+            .depositCount(initial.getDepositCount())
+            .withdrawalCount(initial.getWithdrawalCount())
+            .averageTransactionAmount(initial.getAverageTransactionAmount())
+            .largestDeposit(initial.getLargestDeposit())
+            .largestWithdrawal(initial.getLargestWithdrawal())
+            .lastTransactionDate(initial.getLastTransactionDate())
+            .firstTransactionDate(initial.getFirstTransactionDate())
+            .dailyBalances(initial.getDailyBalances())
+            .monthlyExpenses(initial.getMonthlyExpenses())
+            .monthlyIncome(initial.getMonthlyIncome())
+            .volatilityScore(initial.getVolatilityScore())
+            .spendingPattern(initial.getSpendingPattern())
+            .primaryCategory(initial.getPrimaryCategory())
+            .lastUpdated(LocalDateTime.now())
+            .calculatedAt(initial.getCalculatedAt())
+            .build();
+        analyticsRepository.save(updated);
+        
+        // Then - Next call should fetch fresh data from MongoDB
+        Optional<AccountAnalytics> fresh = analyticsService.getAccountAnalytics(accountId);
+        assertThat(fresh).isPresent();
+        assertThat(fresh.get().getTotalBalance()).isEqualTo(new BigDecimal("1500.00"));
     }
 }

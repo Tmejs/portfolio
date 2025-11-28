@@ -2,7 +2,7 @@ package com.portfolio.analytics.controller;
 
 import com.portfolio.analytics.model.AccountAnalytics;
 import com.portfolio.analytics.service.AccountAnalyticsService;
-import com.portfolio.analytics.service.AccountAnalyticsService.TransactionData;
+import com.portfolio.shared.dto.TransactionData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

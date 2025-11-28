@@ -1,5 +1,6 @@
 package com.portfolio.analytics.consumer;
 
+import com.portfolio.analytics.BaseAnalyticsIT;
 import com.portfolio.analytics.event.TransactionEvent;
 import com.portfolio.analytics.model.AccountAnalytics;
 import com.portfolio.analytics.service.AccountAnalyticsService;
@@ -16,7 +17,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,10 +35,9 @@ import static org.awaitility.Awaitility.await;
     topics = {"transaction-events"},
     brokerProperties = {"listeners=PLAINTEXT://localhost:9097", "port=9097"}
 )
-@ActiveProfiles("test")
 @DirtiesContext
 @DisplayName("Transaction Event Consumer Integration Tests")
-class TransactionEventConsumerIT {
+class TransactionEventConsumerIT extends BaseAnalyticsIT {
 
     @Autowired
     private TransactionEventConsumer transactionEventConsumer;
